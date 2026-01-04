@@ -68,9 +68,7 @@ func dbInstance() *mongo.Client {
 	// Configure connection options with extended timeouts for cloud deployment
 	clientOptions := options.Client().
 		ApplyURI(MongoDb).
-		SetConnectTimeout(30 * time.Second).
-		SetServerSelectionTimeout(30 * time.Second).
-		SetSocketTimeout(30 * time.Second).
+		SetTimeout(30 * time.Second).
 		SetMaxPoolSize(10).
 		SetMinPoolSize(1)
 
