@@ -36,12 +36,11 @@ import (
 // dbInstance creates the MongoDB connection
 // Returns: *mongo.Client (pointer/address, not copy)
 func dbInstance() *mongo.Client {
-	// Load environment variables from .env file
-	// Node.js equivalent: require('dotenv').config()
+	// Load environment variables from .env file (only for local development)
+	// In production (Render), environment variables are set directly
 	err := godotenv.Load(".env")
-
 	if err != nil {
-		log.Println("Warning: Cant find the .env file")
+		log.Println("Warning: .env file not found (this is normal in production)")
 	}
 
 	// Get connection string from environment
@@ -49,10 +48,10 @@ func dbInstance() *mongo.Client {
 	MongoDb := os.Getenv("MONGODB_URI")
 
 	if MongoDb == "" {
-		log.Fatal("MONGODB_URI not retrived")
+		log.Fatal("MONGODB_URI environment variable not found")
 	}
 
-	fmt.Println(MongoDb)
+	fmt.Println("Connecting to MongoDB...")
 
 	// Configure connection options
 	// Node.js equivalent: mongoose handles this automatically
@@ -63,9 +62,15 @@ func dbInstance() *mongo.Client {
 	client, err := mongo.Connect(clientOptions)
 
 	if err != nil {
-		return nil
+		log.Fatal("Failed to connect to MongoDB:", err)
 	}
 
+	// Test the connection
+	if err := client.Ping(nil, nil); err != nil {
+		log.Fatal("Failed to ping MongoDB:", err)
+	}
+
+	fmt.Println("Successfully connected to MongoDB!")
 	return client // Returns pointer (address) to avoid copying expensive connection
 }
 
@@ -77,22 +82,28 @@ var Client *mongo.Client = dbInstance()
 // OpenCollection gets a specific collection
 // Returns: *mongo.Collection (pointer) for same efficiency reasons
 func OpenCollection(collectionName string) *mongo.Collection {
+	// Load .env file (only needed for local development)
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Println("Warning: Cant find the .env file")
+		log.Println("Warning: .env file not found (this is normal in production)")
 	}
 
 	databaseName := os.Getenv("DATABASE_NAME")
-	fmt.Println(databaseName)
+	if databaseName == "" {
+		log.Fatal("DATABASE_NAME environment variable not found")
+	}
+
+	fmt.Println("Using database:", databaseName)
+
+	// Ensure client is connected
+	if Client == nil {
+		log.Fatal("MongoDB client is not initialized")
+	}
 
 	// Get collection from database
 	// Client is pointer, so we use . (not ->) like JavaScript obj.method()
 	// Returns pointer to collection (efficient)
 	collection := Client.Database(databaseName).Collection(collectionName)
-
-	if collection == nil {
-		return nil
-	}
 
 	return collection // Return pointer to collection (address, not copy)
 }
