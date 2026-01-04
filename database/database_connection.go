@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -51,11 +52,23 @@ func dbInstance() *mongo.Client {
 		log.Fatal("MONGODB_URI environment variable not found")
 	}
 
+	// Ensure SSL/TLS parameters are in the connection string for production
+	if !strings.Contains(MongoDb, "ssl=true") && !strings.Contains(MongoDb, "tls=true") {
+		if strings.Contains(MongoDb, "?") {
+			MongoDb += "&ssl=true&tlsInsecure=false"
+		} else {
+			MongoDb += "?ssl=true&tlsInsecure=false"
+		}
+	}
+
 	fmt.Println("Connecting to MongoDB...")
 
-	// Configure connection options
+	// Configure connection options with TLS settings for production
 	// Node.js equivalent: mongoose handles this automatically
-	clientOptions := options.Client().ApplyURI(MongoDb)
+	clientOptions := options.Client().ApplyURI(MongoDb).
+		SetTLSConfig(nil). // Use default TLS config
+		SetRetryWrites(true).
+		SetRetryReads(true)
 
 	// Actually connect to MongoDB
 	// Returns: *mongo.Client (pointer) - address of connection, not copy
