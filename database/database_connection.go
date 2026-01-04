@@ -1,10 +1,12 @@
 package database
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -63,12 +65,14 @@ func dbInstance() *mongo.Client {
 
 	fmt.Println("Connecting to MongoDB...")
 
-	// Configure connection options with TLS settings for production
-	// Node.js equivalent: mongoose handles this automatically
-	clientOptions := options.Client().ApplyURI(MongoDb).
-		SetTLSConfig(nil). // Use default TLS config
-		SetRetryWrites(true).
-		SetRetryReads(true)
+	// Configure connection options with extended timeouts for cloud deployment
+	clientOptions := options.Client().
+		ApplyURI(MongoDb).
+		SetConnectTimeout(30 * time.Second).
+		SetServerSelectionTimeout(30 * time.Second).
+		SetSocketTimeout(30 * time.Second).
+		SetMaxPoolSize(10).
+		SetMinPoolSize(1)
 
 	// Actually connect to MongoDB
 	// Returns: *mongo.Client (pointer) - address of connection, not copy
@@ -78,8 +82,11 @@ func dbInstance() *mongo.Client {
 		log.Fatal("Failed to connect to MongoDB:", err)
 	}
 
-	// Test the connection
-	if err := client.Ping(nil, nil); err != nil {
+	// Test the connection with longer timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := client.Ping(ctx, nil); err != nil {
 		log.Fatal("Failed to ping MongoDB:", err)
 	}
 
